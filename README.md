@@ -17,7 +17,12 @@ Python project to forecast stock return volatility using **GARCH(p,q)** models.
 
 ### 1. Clone and install
 ```bash
-git clone https://github.com/<NikolaFejsa>/garch-vol-forecast
-cd garch-vol-forecast
+git clone https://github.com/NikolaFejsa/garch-volatility-forecast.git
+cd garch-volatility-forecast
 pip install -r requirements.txt
+```
 
+### 2. Run
+```bash
+python garch_forecast.py
+```
