@@ -11,6 +11,15 @@ from arch import arch_model
 import warnings
 warnings.filterwarnings("ignore")
 
+# --- Plot style: black bg + grid, green/red lines ---
+plt.style.use("dark_background")        # black background everywhere
+plt.rcParams["axes.grid"] = True
+plt.rcParams["grid.color"] = "gray"
+plt.rcParams["grid.alpha"] = 0.3
+plt.rcParams["figure.facecolor"] = "black"
+plt.rcParams["axes.facecolor"] = "black"
+plt.rcParams["savefig.facecolor"] = "black"
+
 TRADING_DAYS = 252
 
 def fetch_prices(ticker: str, period: str = "3y") -> pd.DataFrame:
@@ -71,15 +80,24 @@ def main():
 
     # 2) Inspect ACF/PACF
     fig, axes = plt.subplots(1, 3, figsize=(15, 4))
-    axes[0].plot(prices.index, prices["Close"])
+
+    # Price (cyan)
+    axes[0].plot(prices.index, prices["Close"], color="cyan", linewidth=1.2)
     axes[0].set_title(f"{ticker} Adjusted Close")
     axes[0].set_xlabel("Date"); axes[0].set_ylabel("Price")
 
+    # ACF (returns) – cyan
     plot_acf(rets.dropna(), lags=30, ax=axes[1])
+    for l in axes[1].lines:    # make CI lines visible on dark bg
+        l.set_color("white")
     axes[1].set_title("ACF of Returns")
 
+    # PACF (squared returns) – orange
     plot_pacf((rets**2).dropna(), lags=30, ax=axes[2], method="ywm")
+    for l in axes[2].lines:
+        l.set_color("white")
     axes[2].set_title("PACF of Squared Returns")
+
     fig.suptitle("Use PACF(squared) for ARCH order (q); slow ACF decay ⇒ GARCH component (p).", fontsize=10)
     plt.tight_layout()
     plt.show()
@@ -115,7 +133,31 @@ def main():
     plt.tight_layout()
     plt.show()
 
-    # 7) Print last values
+    # 7) Plot: close-up of forecast
+    last_n = 7
+    ins_last = res.conditional_volatility.tail(last_n)  # daily % (in-sample)
+    fc_next = sigma.iloc[:last_n]                        # first 7 forecasted days
+
+    # Combine for a clean, continuous x-axis
+    combo = pd.concat([ins_last, fc_next])
+    split_date = ins_last.index[-1]
+
+    plt.figure(figsize=(12, 3.8))
+    # In-sample last 7 days (lime)
+    ins_last.plot(color="lime", label="In-sample (last 7d)", linewidth=2, marker="o")
+    # Forecast next 7 days (red)
+    fc_next.plot(color="red", label="Forecast (next 7d)", linewidth=2, marker="o")
+
+    # Vertical split line
+    plt.axvline(split_date, linestyle="--", linewidth=1, color="gray", alpha=0.6)
+
+    plt.title(f"{ticker} – Volatility: last 7 days vs next 7 days")
+    plt.ylabel("Volatility (%)"); plt.xlabel("Date")
+    plt.legend(framealpha=0.2)
+    plt.tight_layout()
+    plt.show()
+
+    # 8) Print last values
     print("\nLast 5 in-sample daily vol (%):")
     print(cond_vol.tail().round(3))
     print("\nForecast daily vol (%):")
