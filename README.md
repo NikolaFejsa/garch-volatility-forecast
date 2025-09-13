@@ -10,6 +10,8 @@ Python project to forecast stock return volatility using **GARCH(p,q)** models.
 - Fits a user-chosen **GARCH(p,q)** model with the [`arch`](https://pypi.org/project/arch/) package.
 - Forecasts next N trading days of **daily volatility (%)**.
 - Provides both a full in-sample vs. forecast plot, and a clarity plot (last 7 days vs. next 7 days).
+- Computes a 1-day ahead backtest and uses a QLIKE evaluation, against baseline of EWMA(0.94)
+- Creates a PDF to summarise results
 
 ---
 
@@ -26,3 +28,4 @@ pip install -r requirements.txt
 ```bash
 python garch_forecast.py
 ```
+
