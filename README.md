@@ -4,7 +4,7 @@
 
 Python project to forecast stock return volatility using **GARCH(p,q)** models.
 
-[![Example Forecast Report](report_thumb.png)](report_CBRE_garch11.pdf)
+[Example Forecast Report](report_CBRE_garch11.pdf)
 ## Features
 - Fetches historical price data with [`yfinance`](https://pypi.org/project/yfinance/).
 - Computes log returns and visualizes **ACF/PACF** for model selection.
@@ -29,6 +29,7 @@ pip install -r requirements.txt
 ```bash
 python garch_forecast.py
 ```
+
 
 
 
