@@ -69,7 +69,7 @@ def forecast_vol(model_fit, horizon: int = 7) -> pd.Series:
     var_h = np.asarray(fc.variance.values[-1, :], dtype=float)
     sigma = np.sqrt(var_h)  # percent per day
 
-    # Use a public index (not internal attrs)
+    # Use a public index
     last_date = model_fit.conditional_volatility.index[-1]
     future_idx = pd.bdate_range(start=last_date, periods=horizon + 1, freq="B")[1:]
     return pd.Series(sigma, index=future_idx, name="sigma_pct")
@@ -90,8 +90,8 @@ def qlike_loss(forecast_var: pd.Series, realized_var: pd.Series) -> pd.Series:
 
 def ewma_variance_1dahead(ret: pd.Series, lam: float = 0.94) -> pd.Series:
     """
-    RiskMetrics-style EWMA 1-step-ahead *forecast* of variance.
-    Returns a series indexed by the *NEXT* day's date (t+1),
+    EWMA 1-step-ahead forecast of variance.
+    Returns a series indexed by (t+1),
     aligned with realized variance on that next day.
     """
     r = (ret / 100.0).dropna()  # decimal
@@ -113,7 +113,7 @@ def ewma_variance_1dahead(ret: pd.Series, lam: float = 0.94) -> pd.Series:
 def backtest_garch_1d(rets: pd.Series, p: int, q: int, window: int | None = None, dist: str = "t") -> pd.DataFrame:
     """
     Rolling 1-step-ahead backtest of GARCH(p,q) reporting QLIKE only.
-    Returns DF with realized_var, garch_var, ewma_var, and their QLIKE losses.
+    Returns DF with realized_var, garch_var, ewma_var, and their QLIKE.
     """
     rets = rets.dropna()
     n = len(rets)
@@ -121,7 +121,7 @@ def backtest_garch_1d(rets: pd.Series, p: int, q: int, window: int | None = None
     if n < min_obs:
         raise ValueError(f"Not enough data for backtest (have {n}, need >= {min_obs}). Try a longer period.")
 
-    # Auto window sized to sample (works for short periods too)
+    # Auto window sized to sample
     if window is None:
         window = max(30, min(int(0.5 * n), n - 15))
 
@@ -133,13 +133,13 @@ def backtest_garch_1d(rets: pd.Series, p: int, q: int, window: int | None = None
 
     # At time t (using data up to t) forecast variance for t+1
     for t in range(window, n - 1):
-        train = rets.iloc[:t + 1]  # percent returns up to t
+        train = rets.iloc[:t + 1]  
         try:
             am = arch_model(train, mean="Constant", vol="GARCH", p=p, q=q, dist=dist)
             res = am.fit(disp="off")
             f = res.forecast(horizon=1, reindex=False)
-            v_next_pct2 = float(f.variance.values[-1, 0])     # percent^2
-            v_next = v_next_pct2 / (100.0 ** 2)                # -> decimal^2
+            v_next_pct2 = float(f.variance.values[-1, 0])     
+            v_next = v_next_pct2 / (100.0 ** 2)                
         except Exception:
             v_next = np.nan
 
@@ -156,10 +156,7 @@ def backtest_garch_1d(rets: pd.Series, p: int, q: int, window: int | None = None
         axis=1
     ).dropna()
 
-    if out.empty:
-        raise ValueError("Backtest produced no overlap (too little data). Increase period or reduce window.")
-
-    # QLIKE only
+    # Report QLIKE
     out["loss_qlike_garch"] = qlike_loss(out["garch_var"], out["realized_var"])
     out["loss_qlike_ewma"]  = qlike_loss(out["ewma_var"],  out["realized_var"])
     return out
@@ -187,10 +184,9 @@ def build_pdf_report(
     plot_bt_path: str = "plot_backtest.png",
     out_path: str | None = None,
 ):
-    """
-    Create a concise decision-maker PDF report.
-    Includes: Objective, Data, Model, Forecasts, Backtest (if available), Takeaways.
-    """
+    
+    #Includes: Objective, Data, Model, Forecasts, Backtest (if available), Takeaways.
+    
     if out_path is None:
         out_path = f"report_{ticker}_garch{p}{q}.pdf"
 
@@ -205,13 +201,13 @@ def build_pdf_report(
 
     story = []
 
-    # --- Title
+    #Title
     title = f"GARCH Volatility Forecasting Report – {ticker}"
     story.append(Paragraph(title, styles["H1"]))
     story.append(Paragraph(f"Period analyzed: {period} &nbsp;&nbsp;|&nbsp;&nbsp; Model: GARCH({p},{q}) &nbsp;&nbsp;|&nbsp;&nbsp; Forecast horizon: {horizon} trading days", styles["Small"]))
     story.append(Spacer(1, 6))
 
-    # --- Objective
+    #Objective
     story.append(Paragraph("1. Objective", styles["H2"]))
     story.append(Paragraph(
         "Forecast short-term stock return volatility using a GARCH(p,q) model and provide clear visuals for upcoming risk. "
@@ -219,21 +215,21 @@ def build_pdf_report(
         styles["Body"]))
     story.append(Spacer(1, 6))
 
-    # --- Data
+    #Data
     story.append(Paragraph("2. Data", styles["H2"]))
     story.append(Paragraph(
         "Data source: Yahoo Finance (adjusted close). Returns are daily log returns expressed in percent. "
         "Volatility figures shown are daily standard deviations in percent.", styles["Body"]))
     story.append(Spacer(1, 6))
 
-    # --- Model Selection (short)
+    #Model Selection
     story.append(Paragraph("3. Model Selection", styles["H2"]))
     story.append(Paragraph(
         "Model orders (p,q) guided by ACF/PACF diagnostics of (squared) returns and BIC search. "
         f"Chosen specification: GARCH({p},{q}).", styles["Body"]))
     story.append(Spacer(1, 6))
 
-    # --- Forecasts (key charts)
+    #Forecasts 
     story.append(Paragraph("4. Forecasts", styles["H2"]))
     # Last in-sample vols table
     try:
@@ -274,7 +270,7 @@ def build_pdf_report(
     except Exception:
         pass
 
-    # Insert plots if present
+    # Insert plots 
     if os.path.exists(plot_full_path):
         story.append(Image(plot_full_path, width=520, height=240))
         story.append(Spacer(1, 8))
@@ -282,7 +278,7 @@ def build_pdf_report(
         story.append(Image(plot_clarity_path, width=520, height=220))
         story.append(Spacer(1, 8))
 
-    # --- Backtest (only if available)
+    #Backtest
     if have_backtest and (mean_qlike_garch is not None) and (mean_qlike_ewma is not None):
         story.append(Paragraph("5. Backtest (1-day ahead, QLIKE)", styles["H2"]))
         story.append(Paragraph(
@@ -310,10 +306,10 @@ def build_pdf_report(
             story.append(Image(plot_bt_path, width=520, height=240))
             story.append(Spacer(1, 8))
 
-    # --- Takeaways
+    #Takeaways
     story.append(Paragraph("6. Takeaways", styles["H2"]))
 
-    # 1) Most recent predicted volatilities
+    # 1)Most recent predicted volatilities
     fc_head = sigma_forecast.head(min(3, len(sigma_forecast)))
     predicted_str = "; ".join([f"{str(idx.date())}: {_fmt_pct(val,3)}" for idx, val in fc_head.items()])
 
@@ -396,7 +392,7 @@ def main():
     sigma = forecast_vol(res, horizon=horizon)  # in percent per day
 
     # 6) Plot: in-sample conditional volatility + forecast
-    cond_vol = res.conditional_volatility  # also in percent
+    cond_vol = res.conditional_volatility  
     plt.figure(figsize=(12, 4))
     cond_vol.plot(label="In-sample sigma (pct)")
     sigma.plot(label="Forecast sigma (pct)")
@@ -409,7 +405,7 @@ def main():
     plt.show()
     
 
-    # 7) Plot: close-up of forecast (dynamic last K vs next H days)
+    # 7) Plot: close-up of forecast (last K vs next H days)
     K = min(7, len(res.conditional_volatility))
     H = min(len(sigma), max(1, int(horizon)))  # if user typed 1, title/legend say 1
 
@@ -451,9 +447,9 @@ def main():
         print(f"  GARCH: {mean_qlike_garch:.6f}")
         print(f"  EWMA : {mean_qlike_ewma:.6f}")
         if mean_qlike_garch < mean_qlike_ewma:
-            print("✅ GARCH outperforms EWMA on QLIKE")
+            print("GARCH outperforms EWMA on QLIKE")
         else:
-            print("⚠️ EWMA outperforms GARCH on QLIKE")
+            print("EWMA outperforms GARCH on QLIKE")
 
     # Plot realized vs forecasts
         plt.figure(figsize=(12, 4))
@@ -464,7 +460,7 @@ def main():
         plt.ylabel("Volatility (%)"); plt.xlabel("Date")
         plt.legend(framealpha=0.2)
         plt.tight_layout()
-        plt.savefig("plot_backtest.png", dpi=150, bbox_inches="tight")  # <-- save first
+        plt.savefig("plot_backtest.png", dpi=150, bbox_inches="tight")  
         plt.show()
 
     except ValueError as e:
@@ -482,7 +478,7 @@ def main():
     p=p, q=q,
     horizon=horizon,
     cond_vol_last5=cond_vol_last5,
-    sigma_forecast=sigma,          # daily % series
+    sigma_forecast=sigma,         
     mean_qlike_garch=mean_qlike_garch,
     mean_qlike_ewma=mean_qlike_ewma,
     have_backtest=have_backtest,
